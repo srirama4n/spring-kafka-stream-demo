@@ -5,15 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang.SerializationUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
+import org.apache.kafka.streams.state.HostInfo;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.QueryableStoreTypes;
+import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -22,23 +23,21 @@ import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.annotation.Input;
 import org.springframework.cloud.stream.annotation.Output;
 import org.springframework.cloud.stream.annotation.StreamListener;
+import org.springframework.cloud.stream.binder.kafka.streams.InteractiveQueryService;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.support.GenericMessage;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.Payload;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
 @SpringBootApplication
 @EnableBinding(AnalyticsBinding.class)
@@ -96,28 +95,45 @@ public class StreamsDemoApplication {
     @Component
     public static class PageViewEventSink {
 
-        Log log = LogFactory.getLog(getClass());
+        private Log log = LogFactory.getLog(getClass());
 
         @StreamListener
         public void process(
                 @Input(AnalyticsBinding.PAGE_VIEWS_IN) KStream<String, String> events) {
-            events.foreach((key, value) -> {
-                try {
-                    PageViewEvent o = mapper.readValue(value, PageViewEvent.class);
-                    log.info(o.toString());
-                    log.info("Received Message : "+ key.toString() + " : value "+o.getUserId());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-            });
-            /*KTable<String, Long> count = events
-                    .filter((s, value) -> value.getDuration() > 10)
-                    .map((s, value) -> new KeyValue<>(value.getPage(), "0"))
+            KTable<String, String> kTable = events
                     .groupByKey()
-                    .count(Materialized.as(AnalyticsBinding.PAGE_COUNT_MV));*/
+                    .reduce((aggValue, currValue) -> currValue, Materialized.as(AnalyticsBinding.PAGE_COUNT_MV));
+
+            kTable.queryableStoreName();
+        }
+    }
+
+
+    @RestController
+    public static class TestController {
+
+        private Log log = LogFactory.getLog(getClass());
+
+        private final InteractiveQueryService interactiveQueryService;
+
+        public TestController(InteractiveQueryService interactiveQueryService) {
+            this.interactiveQueryService = interactiveQueryService;
+        }
+
+        @GetMapping("/count")
+        public void process() {
+            ReadOnlyKeyValueStore<String, String> store = interactiveQueryService
+                    .getQueryableStore(AnalyticsBinding.PAGE_COUNT_MV, QueryableStoreTypes.<String, String>keyValueStore());
+            HostInfo hostInfo = interactiveQueryService.getHostInfo(AnalyticsBinding.PAGE_COUNT_MV, "MMyname", new StringSerializer());
+            log.info("Host "+hostInfo.host()+" : "+hostInfo.port());
+            KeyValueIterator<String, String> all = store.all();
+            while (all.hasNext()) {
+
+                log.info("Next value is : " + String.valueOf(all.next()));
+            }
 
         }
+
     }
 
     public static void main(String[] args) {
