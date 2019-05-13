@@ -2,37 +2,21 @@ package in.codeislife.streamsdemo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import in.codeislife.streamsdemo.binding.AnalyticsBinding;
+import in.codeislife.streamsdemo.model.PageViewEvent;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.KTable;
-import org.apache.kafka.streams.kstream.Materialized;
-import org.apache.kafka.streams.state.HostInfo;
-import org.apache.kafka.streams.state.KeyValueIterator;
-import org.apache.kafka.streams.state.QueryableStoreTypes;
-import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.stream.annotation.EnableBinding;
-import org.springframework.cloud.stream.annotation.Input;
-import org.springframework.cloud.stream.annotation.Output;
-import org.springframework.cloud.stream.annotation.StreamListener;
-import org.springframework.cloud.stream.binder.kafka.streams.InteractiveQueryService;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -46,7 +30,7 @@ public class StreamsDemoApplication {
     public static final ObjectMapper mapper = new ObjectMapper();
 
     @Component
-    public static class PageViewEventSource implements ApplicationRunner {
+    public class PageViewEventSource implements ApplicationRunner {
 
         private MessageChannel messageChannel;
         private Log log = LogFactory.getLog(getClass());
@@ -57,7 +41,7 @@ public class StreamsDemoApplication {
 
         @Override
         public void run(ApplicationArguments args) throws Exception {
-            List<String> names = Arrays.asList("heelo", "Message1", "MMyname", "madhu", "wells");
+            List<String> names = Arrays.asList("heelo", "Message1", "Myname", "madhu", "wells");
             List<String> pages = Arrays.asList("initilizer", "sitemap", "bog", "news", "about");
 
             Runnable runnable = () -> {
@@ -92,49 +76,9 @@ public class StreamsDemoApplication {
         }
     }
 
-    @Component
-    public static class PageViewEventSink {
-
-        private Log log = LogFactory.getLog(getClass());
-
-        @StreamListener
-        public void process(
-                @Input(AnalyticsBinding.PAGE_VIEWS_IN) KStream<String, String> events) {
-            KTable<String, String> kTable = events
-                    .groupByKey()
-                    .reduce((aggValue, currValue) -> currValue, Materialized.as(AnalyticsBinding.PAGE_COUNT_MV));
-
-            kTable.queryableStoreName();
-        }
-    }
 
 
-    @RestController
-    public static class TestController {
 
-        private Log log = LogFactory.getLog(getClass());
-
-        private final InteractiveQueryService interactiveQueryService;
-
-        public TestController(InteractiveQueryService interactiveQueryService) {
-            this.interactiveQueryService = interactiveQueryService;
-        }
-
-        @GetMapping("/count")
-        public void process() {
-            ReadOnlyKeyValueStore<String, String> store = interactiveQueryService
-                    .getQueryableStore(AnalyticsBinding.PAGE_COUNT_MV, QueryableStoreTypes.<String, String>keyValueStore());
-            HostInfo hostInfo = interactiveQueryService.getHostInfo(AnalyticsBinding.PAGE_COUNT_MV, "MMyname", new StringSerializer());
-            log.info("Host "+hostInfo.host()+" : "+hostInfo.port());
-            KeyValueIterator<String, String> all = store.all();
-            while (all.hasNext()) {
-
-                log.info("Next value is : " + String.valueOf(all.next()));
-            }
-
-        }
-
-    }
 
     public static void main(String[] args) {
         SpringApplication.run(StreamsDemoApplication.class, args);
@@ -142,25 +86,4 @@ public class StreamsDemoApplication {
 
 }
 
-interface AnalyticsBinding {
-
-    String PAGE_VIEWS_OUT = "pvout";
-    String PAGE_VIEWS_IN = "pvin";
-    String PAGE_COUNT_MV = "pcmv";
-
-    @Input(PAGE_VIEWS_IN)
-    KStream<?, ?> pageViewInt();
-
-    @Output(PAGE_VIEWS_OUT)
-    MessageChannel output();
-}
-
-
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-class PageViewEvent implements Serializable {
-    private String userId, page;
-    private long duration;
-}
 
