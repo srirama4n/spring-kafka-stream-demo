@@ -2,8 +2,8 @@ package in.codeislife.streamsdemo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import in.codeislife.streamsdemo.binding.AnalyticsBinding;
-import in.codeislife.streamsdemo.model.PageViewEvent;
+import in.codeislife.streamsdemo.binding.ProvisionBinding;
+import in.codeislife.streamsdemo.model.PrevisionCertificateDetails;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -20,42 +20,42 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
-@EnableBinding(AnalyticsBinding.class)
+@EnableBinding(ProvisionBinding.class)
 public class StreamsDemoApplication {
 
     public static final ObjectMapper mapper = new ObjectMapper();
 
     @Component
-    public class PageViewEventSource implements ApplicationRunner {
+    public class EventSource implements ApplicationRunner {
 
         private MessageChannel messageChannel;
         private Log log = LogFactory.getLog(getClass());
 
-        public PageViewEventSource(AnalyticsBinding binding) {
+        public EventSource(ProvisionBinding binding) {
             this.messageChannel = binding.output();
         }
 
         @Override
         public void run(ApplicationArguments args) throws Exception {
-            List<String> names = Arrays.asList("heelo", "Message1", "Myname", "madhu", "wells");
-            List<String> pages = Arrays.asList("initilizer", "sitemap", "bog", "news", "about");
+            List<String> subjects = Arrays.asList("heelo", "test", "Myname", "cert",  "wells");
 
             Runnable runnable = () -> {
 
-                String rPage = pages.get(new Random().nextInt(pages.size()));
-                String rName = names.get(new Random().nextInt(names.size()));
+                String rSubject = subjects.get(new Random().nextInt(subjects.size()));
 
-                PageViewEvent pageViewEvent = new PageViewEvent(rName, rPage, Math.random() > .5 ? 10 : 1000);
+                PrevisionCertificateDetails previsionCertificateDetails =
+                        new PrevisionCertificateDetails("1", UUID.randomUUID().toString(), rSubject);
 
                 Message<?> message = null;
                 try {
                     message = MessageBuilder
-                            .withPayload(mapper.writeValueAsString(pageViewEvent).getBytes())
-                            .setHeader(KafkaHeaders.MESSAGE_KEY, pageViewEvent.getUserId().getBytes())
+                            .withPayload(mapper.writeValueAsString(previsionCertificateDetails).getBytes())
+                            .setHeader(KafkaHeaders.MESSAGE_KEY, previsionCertificateDetails.getGuid().getBytes())
                             .build();
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();

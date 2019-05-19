@@ -9,7 +9,8 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class PageViewEvent implements Serializable {
-    private String userId, page;
-    private long duration;
+public class PrevisionCertificateDetails implements Serializable {
+    private String id;
+    private String guid;
+    private String subject;
 }

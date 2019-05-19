@@ -1,7 +1,7 @@
 
 package in.codeislife.streamsdemo.processor;
 
-import in.codeislife.streamsdemo.binding.AnalyticsBinding;
+import in.codeislife.streamsdemo.binding.ProvisionBinding;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
@@ -12,15 +12,16 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class PageViewEventSink {
+public class EventSink {
 
 
     @StreamListener
     public void process(
-            @Input(AnalyticsBinding.PAGE_VIEWS_IN) KStream<String, String> events) {
+            @Input(ProvisionBinding.PROVISION_IN) KStream<String, String> events) {
+
         KTable<String, String> kTable = events
                 .groupByKey()
-                .reduce((aggValue, currValue) -> currValue, Materialized.as(AnalyticsBinding.PAGE_COUNT_MV));
+                .reduce((aggValue, currValue) -> currValue, Materialized.as(ProvisionBinding.PROVISION_MV));
 
         kTable.queryableStoreName();
     }

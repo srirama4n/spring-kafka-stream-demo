@@ -5,15 +5,15 @@ import org.springframework.cloud.stream.annotation.Input;
 import org.springframework.cloud.stream.annotation.Output;
 import org.springframework.messaging.MessageChannel;
 
-public interface AnalyticsBinding {
+public interface ProvisionBinding {
 
-    String PAGE_VIEWS_OUT = "pvout";
-    String PAGE_VIEWS_IN = "pvin";
-    String PAGE_COUNT_MV = "pcmv";
+    String PROVISION_OUT = "pout";
+    String PROVISION_IN = "pin";
+    String PROVISION_MV = "pmv";
 
-    @Input(PAGE_VIEWS_IN)
-    KStream<?, ?> pageViewInt();
+    @Input(PROVISION_IN)
+    KStream<?, ?> provisonInt();
 
-    @Output(PAGE_VIEWS_OUT)
+    @Output(PROVISION_OUT)
     MessageChannel output();
 }
